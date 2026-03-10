@@ -1,3 +1,10 @@
+'''if selected == 'Disease Prediction': 
+    disease_model = DiseaseModel()
+    # Ensure the path points to where your .sav or .json model actually is
+    disease_model.load_xgboost('Frontend/models/diabetes_model.sav')
+
+'''
+
 import streamlit as st
 import plotly.express as px
 from plotly.subplots import make_subplots
@@ -15,6 +22,20 @@ from code.helper import prepare_symptoms_array
 import seaborn as sns
 import matplotlib.pyplot as plt
 import joblib
+
+import sklearn
+import xgboost
+
+# The Fix: Manually assign the missing attribute that XGBoost is looking for
+if not hasattr(sklearn, 'utils'):
+    import sklearn.utils
+    
+# This line prevents the "undefined" error you saw in the red box
+xgboost.sklearn.XGBClassifier._estimator_type = "classifier"
+xgboost.sklearn.XGBRegressor._estimator_type = "regressor"
+
+
+
 
 # loading the models
 diabetes_model = joblib.load("models/diabetes_model.sav")
@@ -54,39 +75,69 @@ with st.sidebar:
         icons=['','activity', 'heart', 'person','person','person','person','bar-chart-fill'],
         default_index=0)
 
+# ================= MULTI DISEASE PREDICTION =================
+if selected == 'Disease Prediction':
 
+    st.title("🧠 Disease Prediction using Machine Learning")
 
-
-# multiple disease prediction
-if selected == 'Disease Prediction': 
-    # Create disease class and load ML model
+    # Initialize model
     disease_model = DiseaseModel()
-    disease_model.load_xgboost('model/xgboost_model.json')
 
-    # Title
-    st.write('# Disease Prediction using Machine Learning')
+    # 🚨 IMPORTANT: Load model explicitly
+    if hasattr(disease_model, "load_xgboost"):
+        disease_model.load_xgboost("model/xgboost_model.json")  
+        # change path if needed
 
-    symptoms = st.multiselect('What are your symptoms?', options=disease_model.all_symptoms)
+    # Symptom selection
+    symptoms = st.multiselect(
+        "What are your symptoms?",
+        options=disease_model.all_symptoms
+    )
 
-    X = prepare_symptoms_array(symptoms)
+    if st.button("Predict"):
 
-    # Trigger XGBoost model
-    if st.button('Predict'): 
-        # Run the model with the python script
-        
-        prediction, prob = disease_model.predict(X)
-        st.write(f'## Disease: {prediction} with {prob*100:.2f}% probability')
+        # ❌ No symptoms selected
+        if len(symptoms) == 0:
+            st.warning("Please select at least one symptom.")
+            st.stop()
+
+        # Prepare input
+        X = prepare_symptoms_array(symptoms)
+
+        # 🚨 Ensure correct shape (1, N)
+        if len(X.shape) == 1:
+            X = X.reshape(1, -1)
+
+        try:
+            prediction, prob = disease_model.predict(X)
+
+            st.success(
+                f"**Disease:** {prediction}  \n"
+                f"**Probability:** {prob * 100:.2f}%"
+            )
+
+            tab1, tab2 = st.tabs(["📖 Description", "🛡 Precautions"])
+
+            with tab1:
+                desc = disease_model.describe_predicted_disease()
+                st.write(desc if desc else "No description available.")
+
+            with tab2:
+                precautions = disease_model.predicted_disease_precautions()
+
+                if precautions:
+                    for i, p in enumerate(precautions, start=1):
+                        st.write(f"{i}. {p}")
+                else:
+                    st.write("No precautions available.")
+
+        except Exception as e:
+            st.error("Prediction failed")
+            st.exception(e)
 
 
-        tab1, tab2= st.tabs(["Description", "Precautions"])
 
-        with tab1:
-            st.write(disease_model.describe_predicted_disease())
 
-        with tab2:
-            precautions = disease_model.predicted_disease_precautions()
-            for i in range(4):
-                st.write(f'{i+1}. {precautions[i]}')
 
 
 
@@ -97,7 +148,7 @@ if selected == 'Diabetes Prediction':  # pagetitle
     image = Image.open('d3.jpg')
     st.image(image, caption='diabetes disease prediction')
     # columns
-    # no inputs from the user
+#     # no inputs from the user
     name = st.text_input("Name:")
     col1, col2, col3 = st.columns(3)
 
@@ -132,7 +183,7 @@ if selected == 'Diabetes Prediction':  # pagetitle
         diabetes_prediction = diabetes_model.predict(
             [[Pregnancies, Glucose, BloodPressure, SkinThickness, Insulin, BMI, DiabetesPedigreefunction, Age]])
 
-        # after the prediction is done if the value in the list at index is 0 is 1 then the person is diabetic
+         # after the prediction is done if the value in the list at index is 0 is 1 then the person is diabetic
         if diabetes_prediction[0] == 1:
             diabetes_dig = "we are really sorry to say but it seems like you are Diabetic."
             image = Image.open('positive.jpg')
@@ -871,7 +922,7 @@ if selected == 'Breast Cancer Prediction':
             'smoothness_mean': [smoothness_mean],
             'compactness_mean': [compactness_mean],
             'concavity_mean': [concavity_mean],
-            'concave points_mean': [concave_points_mean],  # Update this line
+            'concave_points_mean': [concave_points_mean],  # Update this line
             'symmetry_mean': [symmetry_mean],
             'fractal_dimension_mean': [fractal_dimension_mean],
             'radius_se': [radius_se],
@@ -881,7 +932,7 @@ if selected == 'Breast Cancer Prediction':
             'smoothness_se': [smoothness_se],
             'compactness_se': [compactness_se],
             'concavity_se': [concavity_se],
-            'concave points_se': [concave_points_se],  # Update this line
+            'concave_points_se': [concave_points_se],  # Update this line
             'symmetry_se': [symmetry_se],
             'fractal_dimension_se': [fractal_dimension_se],
             'radius_worst': [radius_worst],
@@ -891,13 +942,14 @@ if selected == 'Breast Cancer Prediction':
             'smoothness_worst': [smoothness_worst],
             'compactness_worst': [compactness_worst],
             'concavity_worst': [concavity_worst],
-            'concave points_worst': [concave_points_worst],  # Update this line
+            'concave_points_worst': [concave_points_worst],  # Update this line
             'symmetry_worst': [symmetry_worst],
             'fractal_dimension_worst': [fractal_dimension_worst],
         })
 
         # Perform prediction
         breast_cancer_prediction = breast_cancer_model.predict(user_input)
+        
         # Display result
         if breast_cancer_prediction[0] == 1:
             image = Image.open('positive.jpg')
@@ -909,3 +961,5 @@ if selected == 'Breast Cancer Prediction':
             breast_cancer_result = "The model predicts that you don't have Breast Cancer."
 
         st.success(breast_cancer_result)
+
+

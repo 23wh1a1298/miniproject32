@@ -52,4 +52,14 @@ print(f"The accuracy of the model is {accuracy_score(y_test, preds)}")
 
 # Export model
 joblib.dump(model, gzip.open('model/model_binary.dat.gz', "wb"))
-model.save_model("model/xgboost_model.json")
+#model.save_model("model/xgboost_model.json")
+'''
+import joblib
+import os
+
+# Ensure the models directory exists
+os.makedirs('models', exist_ok=True)
+
+# Save the model using joblib
+joblib.dump(model, 'models/breast_cancer.sav')
+print("Success: Model saved to models/breast_cancer.sav")'''
